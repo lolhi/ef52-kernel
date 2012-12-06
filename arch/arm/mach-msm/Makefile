@@ -414,3 +414,4 @@ ifdef CONFIG_FAB2210_DEBUG
 obj-y += i2c_i_check.o
 endif
 
+obj-$(CONFIG_MSM_CPUFREQ_LIMITER) += cpufreq_limit.o
