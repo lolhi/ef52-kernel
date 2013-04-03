@@ -52,6 +52,26 @@
 #define PRI_SRC_SEL_HFPLL	1
 #define PRI_SRC_SEL_HFPLL_DIV2	2
 
+<<<<<<< HEAD
+=======
+/* PTE EFUSE register offset. */
+#define PTE_EFUSE		0xC0
+
+#ifdef CONFIG_OC_ULTIMATE
+#ifdef CONFIG_LOW_CPUCLOCKS
+#define FREQ_TABLE_SIZE		41
+#else
+#define FREQ_TABLE_SIZE		37
+#endif
+#else
+#ifdef CONFIG_LOW_CPUCLOCKS
+#define FREQ_TABLE_SIZE		39
+#else
+#define FREQ_TABLE_SIZE		35
+#endif
+#endif
+
+>>>>>>> 6625439... Low CPU Clocks: Allow ultra low CPU frequencies for better battery performance
 #define SECCLKAGD		BIT(4)
 
 static DEFINE_MUTEX(driver_lock);
