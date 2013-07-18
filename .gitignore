@@ -127,4 +127,12 @@ usr/gen_init_cpio
 usr/initramfs_data.cpio
 scripts/kconfig/mconf
 
+arch/arm/boot/compressed/ashldi3.S
+arch/arm/mach-msm/smd_rpc_sym.c
+firmware/rmi4/tm2440.img
+firmware/rmi4/tm2440.img.gen.S
+scripts/genksyms/keywords.hash.c
+scripts/genksyms/lex.lex.c
+scripts/genksyms/parse.tab.c
+scripts/genksyms/parse.tab.h
 
