@@ -1043,6 +1043,11 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 			sizeof(*dev->wiphy.ht_capa_mod_mask),
 			dev->wiphy.ht_capa_mod_mask);
 
+	if ((dev->wiphy.flags & WIPHY_FLAG_HAVE_AP_SME) &&
+	    nla_put_u32(msg, NL80211_ATTR_MAC_ACL_MAX,
+			dev->wiphy.max_acl_mac_addrs))
+		goto nla_put_failure;
+
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
@@ -2082,6 +2087,157 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+/*
+ * This function must either return an error or the number
+ * of nested attributes.
+ */
+static int validate_acl_mac_addrs(struct nlattr *nl_attr)
+{
+	struct nlattr *attr;
+	int n_entries = 0, tmp;
+
+	nla_for_each_nested(attr, nl_attr, tmp) {
+		if (nla_len(attr) != ETH_ALEN)
+			return -EINVAL;
+
+		if (!is_valid_ether_addr(nla_data(attr)))
+			return -EINVAL;
+
+		n_entries++;
+	}
+
+	return n_entries;
+}
+
+static const struct nla_policy mac_acl_policy[NL80211_ACL_ATTR_MAX + 1] = {
+	[NL80211_ACL_ATTR_POLICY]	= { .type = NLA_U8 },
+	[NL80211_ACL_ATTR_MAC_ADDRS]	= { .type = NLA_NESTED },
+};
+
+/*
+ * This functoion parses acl information and fills the configuration.
+ * On a successful return, the caller function is responsible to
+ * free up the memory allocated in this function for acl configuration.
+ */
+static int parse_acl_information(struct cfg80211_registered_device *rdev,
+				 struct nlattr *acl_attr,
+				 struct cfg80211_acl_settings *acl)
+{
+	struct nlattr *nla_acl, *attr, *tb[NL80211_ACL_ATTR_MAX + 1];
+	u8 avail_acl[NL80211_ACL_POLICY_MAX + 1];
+	int tmp_acl, tmp, i = 0, j, n_entries, n_acl = 0;
+	int acl_policy, err;
+
+	memset(avail_acl, 0, sizeof(avail_acl));
+	nla_for_each_nested(nla_acl, acl_attr, tmp_acl) {
+
+		if (n_acl > NL80211_ACL_POLICY_MAX) {
+			err = -EINVAL;
+			goto free_acl;
+		}
+
+		if (nla_parse_nested(tb, NL80211_ACL_ATTR_MAX, nla_acl,
+				     mac_acl_policy))
+			continue;
+
+		if (!tb[NL80211_ACL_ATTR_POLICY])
+			continue;
+
+		acl_policy = nla_get_u8(tb[NL80211_ACL_ATTR_POLICY]);
+		if (acl_policy > NL80211_ACL_POLICY_MAX)
+			continue;
+
+		/* Skip multiple acl information for the same acl policy */
+		if (avail_acl[acl_policy])
+			continue;
+
+		if (!tb[NL80211_ACL_ATTR_MAC_ADDRS])
+			continue;
+
+		n_entries =
+			validate_acl_mac_addrs(tb[NL80211_ACL_ATTR_MAC_ADDRS]);
+		if (n_entries < 0 || n_entries > rdev->wiphy.max_acl_mac_addrs)
+			continue;
+
+		acl->acl_data[n_acl] =
+			kzalloc(sizeof(struct cfg80211_acl_data) +
+				(n_entries * sizeof(struct mac_address)),
+				GFP_KERNEL);
+		if (!acl->acl_data[n_acl]) {
+			err = -ENOMEM;
+			goto free_acl;
+		}
+
+		j = 0;
+		nla_for_each_nested(attr, tb[NL80211_ACL_ATTR_MAC_ADDRS], tmp) {
+			memcpy(acl->acl_data[n_acl]->mac_addrs[j].addr,
+			       nla_data(attr), ETH_ALEN);
+			j++;
+		}
+
+		acl->acl_data[n_acl]->n_acl_entries = j;
+		acl->acl_data[n_acl]->acl_policy = acl_policy;
+		avail_acl[acl_policy] = 1;
+		n_acl++;
+	}
+
+	if (!n_acl)
+		return -EINVAL;
+
+	acl->num_acl_list = n_acl;
+
+	return 0;
+
+free_acl:
+	for (i = 0; i < n_acl; i++)
+		kfree(acl->acl_data[i]);
+
+	return err;
+}
+
+static int nl80211_set_mac_acl(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct cfg80211_acl_settings acl;
+	int err, i;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+		return -EOPNOTSUPP;
+
+	if (!dev->ieee80211_ptr->beacon_interval)
+		return -EINVAL;
+
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_HAVE_AP_SME) ||
+	    !rdev->wiphy.max_acl_mac_addrs)
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL80211_ATTR_MAC_ACL_LISTS])
+		return -EINVAL;
+
+	memset(&acl, 0, sizeof(acl));
+
+	err = parse_acl_information(rdev,
+				    info->attrs[NL80211_ATTR_MAC_ACL_LISTS],
+				    &acl);
+	if (err)
+		return err;
+
+	if (!rdev->ops->set_mac_acl) {
+		err = -EOPNOTSUPP;
+		goto out_free;
+	}
+
+	err = rdev->ops->set_mac_acl(&rdev->wiphy, dev, &acl);
+
+out_free:
+	for (i = 0; i < acl.num_acl_list; i++)
+		kfree(acl.acl_data[i]);
+
+	return err;
+}
+
 static int nl80211_parse_beacon(struct genl_info *info,
 				struct cfg80211_beacon_data *bcn)
 {
@@ -2142,13 +2298,14 @@ static int nl80211_parse_beacon(struct genl_info *info,
 	return 0;
 }
 
+
 static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_ap_settings params;
-	int err;
+	int err, i;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
