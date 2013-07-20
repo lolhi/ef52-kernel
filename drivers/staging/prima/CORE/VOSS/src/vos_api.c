@@ -550,10 +550,6 @@ VOS_STATUS vos_preStart( v_CONTEXT_t vosContext )
          VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
            "%s: WDA_preStart reporting other error", __func__);
       }
-      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-           "%s: Test MC thread by posting a probe message to SYS", __func__);
-      wlan_sys_probe();
-
       macStop(gpVosContext->pMACContext, HAL_STOP_TYPE_SYS_DEEP_SLEEP);
       ccmStop(gpVosContext->pMACContext);
       VOS_ASSERT( 0 );
@@ -805,9 +801,6 @@ VOS_STATUS vos_stop( v_CONTEXT_t vosContext )
           VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
            "%s: WDA_stop reporting other error", __func__ );
        }
-       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-           "%s: Test MC thread by posting a probe message to SYS", __func__);
-       wlan_sys_probe();
        WDA_setNeedShutdown(vosContext);
     }
   }

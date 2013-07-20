@@ -844,20 +844,6 @@ stopbss :
          * we don't want interfaces to become re-enabled */
         pHostapdState->bssState = BSS_STOP;
 
-        if (0 != (WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->nAPAutoShutOff)
-        {
-            if (VOS_TIMER_STATE_RUNNING == pHddApCtx->hdd_ap_inactivity_timer.state)
-            {
-                vos_status = vos_timer_stop(&pHddApCtx->hdd_ap_inactivity_timer);
-                if (!VOS_IS_STATUS_SUCCESS(vos_status))
-                    hddLog(LOGE, FL("Failed to stop AP inactivity timer"));
-            }
-
-            vos_status = vos_timer_destroy(&pHddApCtx->hdd_ap_inactivity_timer);
-            if (!VOS_IS_STATUS_SUCCESS(vos_status))
-                hddLog(LOGE, FL("Failed to Destroy AP inactivity timer"));
-        }
-
         /* Stop the pkts from n/w stack as we are going to free all of
          * the TX WMM queues for all STAID's */
         hdd_hostapd_stop(dev);
@@ -1486,8 +1472,8 @@ static iw_softap_commit(struct net_device *dev,
     // ht_capab is not what the name conveys,this is used for protection bitmap
     pConfig->ht_capab = (WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->apProtection;
 
-    if (pCommitConfig->num_accept_mac > MAX_ACL_MAC_ADDRESS)
-        num_mac = pConfig->num_accept_mac = MAX_ACL_MAC_ADDRESS;
+    if (pCommitConfig->num_accept_mac > MAX_MAC_ADDRESS_ACCEPTED)
+        num_mac = pConfig->num_accept_mac = MAX_MAC_ADDRESS_ACCEPTED;
     else
         num_mac = pConfig->num_accept_mac = pCommitConfig->num_accept_mac;
     acl_entry = pCommitConfig->accept_mac;
@@ -1496,8 +1482,8 @@ static iw_softap_commit(struct net_device *dev,
         vos_mem_copy(&pConfig->accept_mac[i], acl_entry->addr, sizeof(v_MACADDR_t));
         acl_entry++;
     }
-    if (pCommitConfig->num_deny_mac > MAX_ACL_MAC_ADDRESS)
-        num_mac = pConfig->num_deny_mac = MAX_ACL_MAC_ADDRESS;
+    if (pCommitConfig->num_deny_mac > MAX_MAC_ADDRESS_DENIED)
+        num_mac = pConfig->num_deny_mac = MAX_MAC_ADDRESS_DENIED;
     else
         num_mac = pConfig->num_deny_mac = pCommitConfig->num_deny_mac;
     acl_entry = pCommitConfig->deny_mac;
@@ -1628,6 +1614,7 @@ int iw_softap_get_channel_list(struct net_device *dev,
     v_U8_t bandEndChannel = RF_CHAN_165;
     v_U32_t temp_num_channels = 0;
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
     v_REGDOMAIN_t domainIdCurrentSoftap;
     tpChannelListInfo channel_list = (tpChannelListInfo) extra;
@@ -1652,8 +1639,8 @@ int iw_softap_get_channel_list(struct net_device *dev,
         bandEndChannel = RF_CHAN_165;
     }
 
-    hddLog(LOG1, FL("\n curBand = %d, bandStartChannel = %hu, "
-                "bandEndChannel = %hu "), curBand,
+    hddLog(LOG1, FL("\n nBandCapability = %d, bandStartChannel = %hu, "
+                "bandEndChannel = %hu \n"), pHddCtx->cfg_ini->nBandCapability, 
                 bandStartChannel, bandEndChannel );
 
     for( i = bandStartChannel; i <= bandEndChannel; i++ )
@@ -2606,71 +2593,46 @@ int iw_get_softap_linkspeed(struct net_device *dev,
 
 {
    hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
-   hdd_context_t *pHddCtx;
    char *pLinkSpeed = (char*)extra;
-   v_U32_t link_speed;
+   v_U16_t link_speed;
    unsigned short staId;
-   int len = sizeof(v_U32_t)+1;
+   int len = sizeof(v_U16_t)+1;
    v_BYTE_t macAddress[VOS_MAC_ADDR_SIZE];
    VOS_STATUS status;
-   int rc, valid;
-
-   pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
-
-   valid = wlan_hdd_validate_context(pHddCtx);
-
-   if (0 != valid)
-   {
-       hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD context not valid"));
-       return valid;
-   }
+   int rc;
 
    if ( hdd_string_to_hex ((char *)wrqu->data.pointer, wrqu->data.length, macAddress ) )
    {
-      hddLog(VOS_TRACE_LEVEL_FATAL, FL("ERROR: Command not found"));
+      hddLog(VOS_TRACE_LEVEL_FATAL, "ERROR: Command not found");
       return -EINVAL;
    }
 
    status = hdd_softap_GetStaId(pHostapdAdapter, (v_MACADDR_t *)macAddress, (void *)(&staId));
 
-   if (!VOS_IS_STATUS_SUCCESS(status))
+   if (!VOS_IS_STATUS_SUCCESS(status ))
    {
-      hddLog(VOS_TRACE_LEVEL_ERROR, FL("ERROR: HDD Failed to find sta id!!"));
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, FL("ERROR: HDD Failed to find sta id!!"));
       link_speed = 0;
    }
    else
    {
       status = wlan_hdd_get_classAstats_for_station(pHostapdAdapter , staId);
-
       if (!VOS_IS_STATUS_SUCCESS(status ))
       {
-          hddLog(VOS_TRACE_LEVEL_ERROR, FL("Unable to retrieve SME statistics"));
+          hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Unable to retrieve SME statistics", __func__);
           return -EINVAL;
       }
-
-      WLANTL_GetSTALinkCapacity(pHddCtx->pvosContext,
-                                staId, &link_speed);
-
-      link_speed = link_speed / 10;
-
-      if (0 == link_speed)
-      {
-          /* The linkspeed returned by HAL is in units of 500kbps.
-           * converting it to mbps.
-           * This is required to support legacy firmware which does
-           * not return link capacity.
-           */
-          link_speed =(int)pHostapdAdapter->hdd_stats.ClassA_stat.tx_rate/2;
-      }
+      link_speed =(int)pHostapdAdapter->hdd_stats.ClassA_stat.tx_rate/2;
    }
 
    wrqu->data.length = len;
-   rc = snprintf(pLinkSpeed, len, "%lu", link_speed);
-
+   rc = snprintf(pLinkSpeed, len, "%u", link_speed);
    if ((rc < 0) || (rc >= len))
    {
       // encoding or length error?
-      hddLog(VOS_TRACE_LEVEL_ERROR,FL( "Unable to encode link speed"));
+      hddLog(VOS_TRACE_LEVEL_ERROR,
+            "%s: Unable to encode link speed, got [%s]",
+             __func__, pLinkSpeed);
       return -EIO;
    }
 
@@ -2792,7 +2754,7 @@ static const struct iw_priv_args hostapd_private_args[] = {
         IW_PRIV_TYPE_BYTE | QCSAP_MAX_WSC_IE, 0, "ap_stats" },
   { QCSAP_IOCTL_PRIV_GET_SOFTAP_LINK_SPEED,
         IW_PRIV_TYPE_CHAR | 18,
-        IW_PRIV_TYPE_CHAR | 5, "getLinkSpeed" },
+        IW_PRIV_TYPE_CHAR | 3, "getLinkSpeed" },
 
   { QCSAP_IOCTL_PRIV_SET_THREE_INT_GET_NONE,
         IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "" },
@@ -2929,14 +2891,11 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
 {   
     hdd_hostapd_state_t * phostapdBuf;
     struct net_device *dev = pAdapter->dev;
-    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     VOS_STATUS status;
     ENTER();
        // Allocate the Wireless Extensions state structure   
     phostapdBuf = WLAN_HDD_GET_HOSTAP_STATE_PTR( pAdapter );
  
-    sme_SetCurrDeviceMode(pHddCtx->hHal, pAdapter->device_mode);
-
     // Zero the memory.  This zeros the profile structure.
     memset(phostapdBuf, 0,sizeof(hdd_hostapd_state_t));
     

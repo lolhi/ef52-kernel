@@ -102,11 +102,9 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
            WDA_GET_RX_MPDU_LEN(pRxPacketInfo));
     limPrintMacAddr(pMac, pHdr->sa, LOG2);)
 
-    if (!pMac->fScanOffload)
-    {
-        if (limDeactivateMinChannelTimerDuringScan(pMac) != eSIR_SUCCESS)
-            return;
-    }
+    if (limDeactivateMinChannelTimerDuringScan(pMac) != eSIR_SUCCESS)
+        return;
+
 
     /**
      * Expect Beacon only when
@@ -118,9 +116,7 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
     if ((pMac->lim.gLimMlmState == eLIM_MLM_WT_PROBE_RESP_STATE) ||
         (pMac->lim.gLimMlmState == eLIM_MLM_PASSIVE_SCAN_STATE) ||
         (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE) ||
-        (psessionEntry->limMlmState == eLIM_MLM_WT_JOIN_BEACON_STATE)
-        || pMac->fScanOffload
-        )
+        (psessionEntry->limMlmState == eLIM_MLM_WT_JOIN_BEACON_STATE))
     {
         if(eHAL_STATUS_SUCCESS != palAllocateMemory(pMac->hHdd, 
                                                     (void **)&pBeacon, sizeof(tSchBeaconStruct)))
@@ -157,12 +153,6 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
         MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_TSF, 0, pBeacon->timeStamp[0]);)
         MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_TSF, 0, pBeacon->timeStamp[1]);)
 
-        if (pMac->fScanOffload)
-        {
-            limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo,
-                    eANI_BOOLEAN_FALSE, eANI_BOOLEAN_TRUE);
-
-        }
 
         if ((pMac->lim.gLimMlmState  == eLIM_MLM_WT_PROBE_RESP_STATE) ||
             (pMac->lim.gLimMlmState  == eLIM_MLM_PASSIVE_SCAN_STATE))
@@ -179,7 +169,7 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
         else if (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE)
         {
         }
-        else if (psessionEntry->limMlmState == eLIM_MLM_WT_JOIN_BEACON_STATE)
+        else
         {
             if( psessionEntry->beacon != NULL )
             {
@@ -259,11 +249,9 @@ limProcessBeaconFrameNoSession(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo)
            WDA_GET_RX_MPDU_LEN(pRxPacketInfo));
     limPrintMacAddr(pMac, pHdr->sa, LOG2);
 
-    if (!pMac->fScanOffload)
-    {
-        if (limDeactivateMinChannelTimerDuringScan(pMac) != eSIR_SUCCESS)
-            return;
-    }
+    if (limDeactivateMinChannelTimerDuringScan(pMac) != eSIR_SUCCESS)
+        return;
+
 
     /**
      * No session has been established. Expect Beacon only when
