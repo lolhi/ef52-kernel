@@ -400,31 +400,6 @@ struct cfg80211_beacon_data {
 };
 
 /**
- * struct cfg80211_acl_data - Access control data
- * @acl_policy: Access control policy to be applied on the station's
-	entry specified by mac_addr
- * @n_acl_entries: Number of mac address entries passed
- * @mac_addrs: List of mac addresses of stations to be used for acl
- */
-struct cfg80211_acl_data {
-	enum nl80211_acl_policy_attr acl_policy;
-	int n_acl_entries;
-
-	/* Keep it last */
-	struct mac_address mac_addrs[0];
-};
-
-/**
- * struct cfg80211_acl_settings - Access control configuration
- * @acl_data: Acl data for various acl policies
- * @mac_acl_list: Number of acl configurations
- */
-struct cfg80211_acl_settings {
-	struct cfg80211_acl_data *acl_data[NL80211_ACL_POLICY_MAX + 1];
-	int num_acl_list;
-};
-
-/**
  * struct cfg80211_ap_settings - AP configuration
  *
  * Used to configure an AP interface.
@@ -440,8 +415,6 @@ struct cfg80211_acl_settings {
  * @privacy: the BSS uses privacy
  * @auth_type: Authentication type (algorithm)
  * @inactivity_timeout: time in seconds to determine station's inactivity.
- * @acl: acl configuration used by the drivers which has support for
- *	mac address based access control
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_beacon_data beacon;
@@ -454,7 +427,6 @@ struct cfg80211_ap_settings {
 	bool privacy;
 	enum nl80211_auth_type auth_type;
 	int inactivity_timeout;
-	struct cfg80211_acl_settings acl;
 };
 
 /**
@@ -2036,11 +2008,6 @@ struct wiphy_wowlan_support {
  * @ap_sme_capa: AP SME capabilities, flags from &enum nl80211_ap_sme_features.
  * @ht_capa_mod_mask:  Specify what ht_cap values can be over-ridden.
  *	If null, then none can be over-ridden.
- *
- * @max_acl_mac_addrs: Maximum number of mac addresses that the device
- *	supports for ACL. Driver having ACL based on MAC address support
- *	has to fill this. This limit is common for both (white and black)
- *	the acl policies.
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -2140,8 +2107,6 @@ struct wiphy {
 #ifdef CONFIG_CFG80211_WEXT
 	const struct iw_handler_def *wext;
 #endif
-
-	u16 max_acl_mac_addrs;
 
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
