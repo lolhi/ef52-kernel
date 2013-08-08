@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -69,6 +69,7 @@ static struct vsycn_ctrl {
 	struct vsync_update vlist[2];
 	int vsync_enabled;
 	int clk_enabled;
+	int new_update;
 	int clk_control;
 	ktime_t vsync_time;
 	struct work_struct clk_work;
@@ -264,6 +265,21 @@ void mdp4_dsi_cmd_pipe_queue(int cndx, struct mdp4_overlay_pipe *pipe)
 	mdp4_stat.overlay_play[pipe->mixer_num]++;
 }
 
+static void mdp4_dsi_cmd_pipe_clean(struct vsync_update *vp)
+{
+	struct mdp4_overlay_pipe *pipe;
+	int i;
+
+	pipe = vp->plist;
+	for (i = 0; i < OVERLAY_PIPE_MAX; i++, pipe++) {
+		if (pipe->pipe_used) {
+			mdp4_overlay_iommu_pipe_free(pipe->pipe_ndx, 0);
+			pipe->pipe_used = 0; /* clear */
+		}
+	}
+	vp->update_cnt = 0;     /* empty queue */
+}
+
 static void mdp4_dsi_cmd_blt_ov_update(struct mdp4_overlay_pipe *pipe);
 
 int mdp4_dsi_cmd_pipe_commit(int cndx, int wait)
@@ -397,11 +413,8 @@ int mdp4_dsi_cmd_pipe_commit(int cndx, int wait)
 
 	mdp4_stat.overlay_commit[pipe->mixer_num]++;
 
-	if (wait) {
-		long long tick;
-
-		mdp4_dsi_cmd_wait4vsync(cndx, &tick);
-	}
+	if (wait)
+		mdp4_dsi_cmd_wait4vsync(0);
 
 	return cnt;
 }
@@ -438,6 +451,7 @@ void mdp4_dsi_cmd_vsync_ctrl(struct fb_info *info, int enable)
 			mipi_dsi_clk_cfg(1);
 			mdp_clk_ctrl(1);
 			vctrl->clk_enabled = 1;
+			vctrl->new_update = 1;
 			clk_set_on = 1;
 		}
 		if (clk_set_on) {
@@ -452,7 +466,7 @@ void mdp4_dsi_cmd_vsync_ctrl(struct fb_info *info, int enable)
 	mutex_unlock(&vctrl->update_lock);
 }
 
-void mdp4_dsi_cmd_wait4vsync(int cndx, long long *vtime)
+void mdp4_dsi_cmd_wait4vsync(int cndx)
 {
 	struct vsycn_ctrl *vctrl;
 	struct mdp4_overlay_pipe *pipe;
@@ -466,10 +480,8 @@ void mdp4_dsi_cmd_wait4vsync(int cndx, long long *vtime)
 	vctrl = &vsync_ctrl_db[cndx];
 	pipe = vctrl->base_pipe;
 
-	if (atomic_read(&vctrl->suspend) > 0) {
-		*vtime = -1;
+	if (atomic_read(&vctrl->suspend) > 0)
 		return;
-	}
 
 	spin_lock_irqsave(&vctrl->spin_lock, flags);
 	if (vctrl->wait_vsync_cnt == 0)
@@ -481,8 +493,6 @@ void mdp4_dsi_cmd_wait4vsync(int cndx, long long *vtime)
 			&vctrl->vsync_comp, msecs_to_jiffies(100)))
 		pr_err("%s %d  TIMEOUT_\n", __func__, __LINE__);
 	mdp4_stat.wait4vsync0++;
-
-	*vtime = ktime_to_ns(vctrl->vsync_time);
 }
 
 static void mdp4_dsi_cmd_wait4dmap(int cndx)
@@ -538,6 +548,12 @@ static void primary_rdptr_isr(int cndx)
 
 	spin_lock(&vctrl->spin_lock);
 	vctrl->vsync_time = ktime_get();
+
+	if (vctrl->new_update) {
+		vctrl->new_update = 0;
+		spin_unlock(&vctrl->spin_lock);
+		return;
+	}
 
 	complete_all(&vctrl->vsync_comp);
 	vctrl->wait_vsync_cnt = 0;
@@ -1103,8 +1119,8 @@ int mdp4_dsi_cmd_off(struct platform_device *pdev)
 	mdp4_overlay_unset_mixer(pipe->mixer_num);
 	mdp4_mixer_stage_down(pipe, 1);
 	// 2013.04.10 revert to 12135 if (mfd->ref_cnt == 0) {
-	mdp4_overlay_pipe_free(pipe);
-	vctrl->base_pipe = NULL;
+		mdp4_overlay_pipe_free(pipe);
+		vctrl->base_pipe = NULL;
 	// 2013.04.10 revert }
 
 	if (vctrl->vsync_enabled) {
@@ -1119,17 +1135,8 @@ int mdp4_dsi_cmd_off(struct platform_device *pdev)
 		 * pipe's iommu will be freed at next overlay play
 		 * and iommu_drop statistic will be increased by one
 		 */
-		vp->update_cnt = 0;     /* empty queue */
-	}
-
-	undx =  vctrl->update_ndx;
-	vp = &vctrl->vlist[undx];
-	if (vp->update_cnt) {
-		/*
-		 * pipe's iommu will be freed at next overlay play
-		 * and iommu_drop statistic will be increased by one
-		 */
-		vp->update_cnt = 0;     /* empty queue */
+		pr_warn("%s: update_cnt=%d\n", __func__, vp->update_cnt);
+		mdp4_dsi_cmd_pipe_clean(vp);
 	}
 
 	pr_debug("%s-:\n", __func__);

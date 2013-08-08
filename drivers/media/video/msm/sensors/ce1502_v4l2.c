@@ -103,9 +103,9 @@ static int8_t flash_flag = 0; //0:off or other , 1:on , 2:auto
 #define CE1502_71_PRM_MINOR_VER	17
 
 #define CE1502_83_FW_MAJOR_VER	83
-#define CE1502_83_FW_MINOR_VER	9//8//7//240//5//4// 2
-#define CE1502_83_PRM_MAJOR_VER	9//83//4//83
-#define CE1502_83_PRM_MINOR_VER	1//9//8//7//240//5//1//4// 2
+#define CE1502_83_FW_MINOR_VER	11//10//9//8//7//240//5//4// 2
+#define CE1502_83_PRM_MAJOR_VER	83//9//83//4//83
+#define CE1502_83_PRM_MINOR_VER	11//10//1//9//8//7//240//5//1//4// 2
 
 #if 0 //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
 #define CE1502_100_FW_MAJOR_VER	87//100
@@ -119,9 +119,9 @@ static int8_t flash_flag = 0; //0:off or other , 1:on , 2:auto
 #define CE1502_87_PRM_MINOR_VER	2//236
 #endif
 #define CE1502_89_FW_MAJOR_VER	89
-#define CE1502_89_FW_MINOR_VER	6//5//233//4//236//2//1
-#define CE1502_89_PRM_MAJOR_VER	6//89//1//89
-#define CE1502_89_PRM_MINOR_VER	1//6//5//233//4//236//2//1
+#define CE1502_89_FW_MINOR_VER	7//6//5//233//4//236//2//1
+#define CE1502_89_PRM_MAJOR_VER	89//6//89//1//89
+#define CE1502_89_PRM_MINOR_VER	7//1//6//5//233//4//236//2//1
 
 #endif
 
@@ -1844,7 +1844,26 @@ uint32_t ce1502_readirq(struct msm_sensor_ctrl_t *s_ctrl)
             asd_flag = 1;
         }        
 #endif         
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+        ce1502_cmd_read(s_ctrl, 0x24, data_buf, 1);
+        //SKYCDBG("%s [AF/success/fail] data_buf[0]:%d \n",__func__, data_buf[0]); 
+        
+        //if(!(data_buf[0] & 0x01)){//stop
+        //    SKYCDBG("%s [AF/success/fail] af status : stop \n",__func__);
+        //} else {
+        //    SKYCDBG("%s [AF/success/fail] af status : doing \n",__func__);                
+        //}
+
+        if(data_buf[0] & 0x02){//af_success
         ce1502_irq_stat = 2;
+        //    SKYCDBG("%s [AF/success/fail] af_success \n",__func__);
+        } else {
+            ce1502_irq_stat = 4;
+        //    SKYCDBG("%s [AF/success/fail] af_fail / other \n",__func__);                
+    }
+#else
+        ce1502_irq_stat = 2;
+#endif
     }
     else if (data_buf[3] & 0x20) // bit 5, AF trigger
     {
@@ -2168,7 +2187,7 @@ if((asd_flag != 0) || (fd_flag == 1))
     //SKYCDBG("%s ASD STATE ON !!! AREA FOCUS START !!!(%d, %d, %d, %d)\n",__func__, x1,x2,y1,y2);
         data_buf[0] = 0x00; //preview assist setting//FD ON
         data_buf[1] = 0x03; //0x01;//0x03;
-        data_buf[2] = 0x03; //interlock;
+        data_buf[2] = 0x01; //only AF //0x03; //interlock;
         data_buf[3] = 0x01;
         data_buf[4] = 0x00;
         data_buf[5] = 0x00;
@@ -2816,10 +2835,14 @@ static int32_t ce1502_sensor_set_focus_mode(struct msm_sensor_ctrl_t *s_ctrl, in
     return rc;
 }
 
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+static int32_t ce1502_sensor_check_af(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp, int8_t * af_result)
+#else
 static int32_t ce1502_sensor_check_af(struct msm_sensor_ctrl_t *s_ctrl ,int8_t autofocus)
+#endif
 {
     uint8_t rdata = 0;
-//    uint8_t data_buf[4];
+    uint8_t data_buf[10];
     int32_t rc = 0;
     //SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d / continuous_af_mode:%d / ce1502_irq_stat:%d \n",__func__, sensor_mode, continuous_af_mode, ce1502_irq_stat);
 
@@ -2834,11 +2857,33 @@ static int32_t ce1502_sensor_check_af(struct msm_sensor_ctrl_t *s_ctrl ,int8_t a
         return 0;
     else if(continuous_af_mode == 2)
     {
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+        if((ce1502_irq_stat == 2)||(ce1502_irq_stat == 4)) {
+            ce1502_cmd_read(s_ctrl, 0x24, data_buf, 1);
+            //SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / data_buf[0]:%d \n",__func__, data_buf[0]); 
+            
+            //if(!(data_buf[0] & 0x01)){//stop
+            //    SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / af status : stop \n",__func__);
+            //} else {
+            //    SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / af status : doing \n",__func__);                
+            //}
+
+            if(data_buf[0] & 0x02){//af_success
+                *af_result = 1;
+            //    SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / af_success \n",__func__);
+            } else {
+                *af_result = 2;
+            //    SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / af_fail / other \n",__func__);                
+            }
+            return 0;
+        }
+#else
         if(ce1502_irq_stat == 2)
             return 0;
+#endif
         else
         {
-            uint8_t data_buf[10];
+            //uint8_t data_buf[10];
 #ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
             if(asd_flag == 1) {//||(asd_flag == 2)) {
                 //FD OFF
@@ -2881,20 +2926,22 @@ static int32_t ce1502_sensor_check_af(struct msm_sensor_ctrl_t *s_ctrl ,int8_t a
                     //SKYCDBG("%s [ASD_TEST] FD ON / rc = %d \n",__func__, rc);            
                 }
 #endif
-#if 0//AF success/fail
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
                 ce1502_cmd_read(s_ctrl, 0x24, data_buf, 1);
-                SKYCDBG("%s [AF/success/fail] data_buf[0]:%d \n",__func__, data_buf[0]); 
+            //SKYCDBG("%s [AF/success/fail] data_buf[0]:%d \n",__func__, data_buf[0]); 
                 
-                if(!(data_buf[0] & 0x01)){//stop
-                    SKYCDBG("%s [AF/success/fail] af status : stop \n",__func__);
-                } else {
-                    SKYCDBG("%s [AF/success/fail] af status : doing \n",__func__);                
-                }
+            //if(!(data_buf[0] & 0x01)){//stop
+            //    SKYCDBG("%s [AF/success/fail] af status : stop \n",__func__);
+            //} else {
+            //    SKYCDBG("%s [AF/success/fail] af status : doing \n",__func__);                
+            //}
 
                 if(data_buf[0] & 0x02){//af_success
-                    SKYCDBG("%s [AF/success/fail] af_success \n",__func__);
+                *af_result = 1;
+            //    SKYCDBG("%s [AF/success/fail] af_success \n",__func__);
                 } else {
-                    SKYCDBG("%s [AF/success/fail] af_fail / other \n",__func__);                
+                *af_result = 2;
+            //    SKYCDBG("%s [AF/success/fail] af_fail / other \n",__func__);                
                 }
 #endif
                 //SKYCDBG("%s[ASD_TEST] return 0 \n",__func__);
@@ -2913,11 +2960,26 @@ static int32_t ce1502_sensor_check_af(struct msm_sensor_ctrl_t *s_ctrl ,int8_t a
     if (rc < 0)
         return rc;
     
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+    if (!(rdata & 0x01)) {
+        if(rdata & 0x02){//af_success
+            *af_result = 1;
+            //SKYCDBG("%s [AF/success/fail] 33 af_success \n",__func__);
+        } else {
+            *af_result = 2;
+            //SKYCDBG("%s [AF/success/fail] 33 af_fail / other \n",__func__);                
+        }
+        rc = 0;
+    }else{
+        //*af_result = 2;//af_fail
+        rc = -1;
+    }
+#else    
     if (!(rdata & 0x01))
         rc = 0;
     else
         rc = -1;
-
+#endif
     return rc;
 }
 

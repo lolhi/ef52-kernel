@@ -107,10 +107,10 @@ struct ci13xxx_ep {
 	spinlock_t                            *lock;
 	struct device                         *device;
 	struct dma_pool                       *td_pool;
-// p13120. 2013.04.10 [PATCH] USB: ci13xxx_udc: Don't free dTD immediately after active bit is cleared --->>>
+// P12125, Daytona FABRIC Hang Issue [CR474557] --->>>
 	struct ci13xxx_td                     *last_zptr;
 	dma_addr_t                            last_zdma;
-// p13120. 2013.04.10 [PATCH] USB: ci13xxx_udc: Don't free dTD immediately after active bit is cleared ---<<<
+// P12125, Daytona FABRIC Hang Issue [CR474557] ---<<<
 	unsigned long dTD_update_fail_count;
 	unsigned long			      prime_fail_count;
 	int				      prime_timer_count;
@@ -145,6 +145,9 @@ struct ci13xxx {
 	struct dma_pool           *qh_pool;   /* DMA pool for queue heads */
 	struct dma_pool           *td_pool;   /* DMA pool for transfer descs */
 	struct usb_request        *status;    /* ep0 status request */
+// P12125, Daytona FABRIC Hang Issue [CR474557] --->>>
+	void                      *status_buf;/* GET_STATUS buffer */
+// P12125, Daytona FABRIC Hang Issue [CR474557] ---<<<
 
 	struct usb_gadget          gadget;     /* USB slave device */
 	struct ci13xxx_ep          ci13xxx_ep[ENDPT_MAX]; /* extended endpts */

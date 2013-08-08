@@ -1294,6 +1294,9 @@ struct exp_gain_cfg {
 struct focus_cfg {
 	int32_t steps;
 	int dir;
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+    int8_t *af_result;
+#endif    
 };
 
 struct fps_cfg {

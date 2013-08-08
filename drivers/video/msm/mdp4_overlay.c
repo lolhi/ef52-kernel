@@ -2076,11 +2076,11 @@ void mdp4_mixer_blend_setup(int mixer)
 				blend->op = MDP4_BLEND_BG_ALPHA_FG_PIXEL;
 #ifdef CONFIG_PANTECH_LCD_FIX_OTG_BLENDING_ISSUE
 				if (!(s_pipe->flags & MDP_BLEND_FG_PREMULT))
-#else				
+#else
 				if ((!(s_pipe->flags & MDP_BLEND_FG_PREMULT)) &&
 						((i != MDP4_MIXER_STAGE0) ||
 							(!base_premulti)))
-#endif							
+#endif
 					blend->op |=
 						MDP4_BLEND_FG_ALPHA_FG_PIXEL;
 				else
@@ -2099,14 +2099,14 @@ void mdp4_mixer_blend_setup(int mixer)
 				(!(s_pipe->flags & MDP_BACKEND_COMPOSITION))) {
 				blend->op = (MDP4_BLEND_FG_ALPHA_BG_PIXEL |
 					MDP4_BLEND_FG_INV_ALPHA);
-#ifdef CONFIG_PANTECH_LCD_FIX_OTG_BLENDING_ISSUE					
-				if (!(s_pipe->flags & MDP_BLEND_FG_PREMULT) &&                  
+#ifdef CONFIG_PANTECH_LCD_FIX_OTG_BLENDING_ISSUE
+				if (!(s_pipe->flags & MDP_BLEND_FG_PREMULT) &&
 					!(d_pipe->flags & MDP_BLEND_FG_PREMULT)) // QCT
 #else
 				if ((!(s_pipe->flags & MDP_BLEND_FG_PREMULT)) &&
 						((i != MDP4_MIXER_STAGE0) ||
 							(!base_premulti)))
-#endif							
+#endif
 					blend->op |=
 						MDP4_BLEND_BG_ALPHA_BG_PIXEL;
 				else
@@ -3338,17 +3338,17 @@ int mdp4_overlay_unset(struct fb_info *info, int ndx)
 	return 0;
 }
 
-int mdp4_overlay_wait4vsync(struct fb_info *info, long long *vtime)
+int mdp4_overlay_wait4vsync(struct fb_info *info)
 {
 	if (!hdmi_prim_display && info->node == 0) {
 		if (ctrl->panel_mode & MDP4_PANEL_DSI_VIDEO)
-			mdp4_dsi_video_wait4vsync(0, vtime);
+			mdp4_dsi_video_wait4vsync(0);
 		else if (ctrl->panel_mode & MDP4_PANEL_DSI_CMD)
-			mdp4_dsi_cmd_wait4vsync(0, vtime);
+			mdp4_dsi_cmd_wait4vsync(0);
 		else if (ctrl->panel_mode & MDP4_PANEL_LCDC)
-			mdp4_lcdc_wait4vsync(0, vtime);
+			mdp4_lcdc_wait4vsync(0);
 	} else if (hdmi_prim_display || info->node == 1) {
-		mdp4_dtv_wait4vsync(0, vtime);
+		mdp4_dtv_wait4vsync(0);
 	}
 
 	return 0;

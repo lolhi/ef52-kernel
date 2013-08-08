@@ -233,7 +233,11 @@ struct msm_sensor_fn_t {
     int (*sensor_set_antibanding) (struct msm_sensor_ctrl_t *, int8_t);
     int (*sensor_set_antishake) (struct msm_sensor_ctrl_t *, int8_t);
     int (*sensor_set_led_mode) (struct msm_sensor_ctrl_t *, int8_t);
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+    int (*sensor_check_af) (struct msm_sensor_ctrl_t *, void __user *argp, int8_t *);
+#else
     int (*sensor_check_af) (struct msm_sensor_ctrl_t *, int8_t);
+#endif
     int (*sensor_set_continuous_af) (struct msm_sensor_ctrl_t *, int8_t);
     int (*sensor_set_focus_rect) (struct msm_sensor_ctrl_t *, int32_t, int8_t * f_info);
     int (*sensor_set_hdr) (struct msm_sensor_ctrl_t *);

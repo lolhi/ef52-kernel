@@ -32,7 +32,7 @@ struct rmi_fn_54_data *data;
 
 extern void rmi_chargermode(int flag);
 extern int send_reference_data(unsigned long arg);
-extern int panel_test(void);
+extern int panel_test(int count);
 extern int prev_charger_data;
 extern int touch_error_check_flag;
 
@@ -76,6 +76,8 @@ static int ioctl_diag_debug(unsigned long arg)
 
     return ret_value;
 }
+extern int charger_mode;
+int call_mode = 4;
 static long touch_fops_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;    
@@ -98,15 +100,18 @@ static long touch_fops_ioctl(struct file *filp,unsigned int cmd, unsigned long a
 			send_reference_data_for_self(arg);
 			break;
 		case TOUCH_IOCTL_SELF_TEST:
-			return_to_user = panel_test();
+			return_to_user = panel_test(X_SENSOR_NUM * Y_SENSOR_NUM);
 			if (copy_to_user(argp, &return_to_user, sizeof(int)))
 				pr_err("%s: Ops..\n", __func__); 
 			break;
 		case TOUCH_IOCTL_CHARGER_MODE:
 			rmi_chargermode(arg);
+            //printk("[Touch]charger_mode = %lu\n", arg);
+            if (arg == 3 || arg == 4)
+                call_mode = arg;
 			break;
 		case TOUCH_IOCTL_GET_CHARGER_MODE:
-			return_to_user = prev_charger_data;
+			return_to_user = charger_mode /*prev_charger_data*/;
 			break;
 		case DIAG_DEBUG:
 			return_to_user = ioctl_diag_debug(arg);

@@ -689,7 +689,16 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
             break;
         case CFG_SET_AF_CHECK:
             if (s_ctrl->func_tbl->sensor_check_af) {
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+                rc = s_ctrl->func_tbl->sensor_check_af(s_ctrl, argp, (int8_t *)cdata.cfg.focus.af_result);
+
+                if(copy_to_user((void *)argp,
+                        &cdata,
+                        sizeof(cdata)))
+                        return -EFAULT;
+#else                
                 rc = s_ctrl->func_tbl->sensor_check_af(s_ctrl, cdata.cfg.focus.dir);
+#endif
             }          
             break;    
         case CFG_SET_CONTINUOUS_AF:

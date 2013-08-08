@@ -97,6 +97,7 @@ x509.genkey
 arch/arm/boot/Image
 arch/arm/boot/compressed/lib1funcs.S
 arch/arm/boot/compressed/piggy.gzip
+arch/arm/boot/compressed/piggy.lz4
 arch/arm/boot/compressed/vmlinux
 arch/arm/boot/compressed/vmlinux.lds
 arch/arm/boot/zImage

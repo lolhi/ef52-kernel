@@ -4339,7 +4339,7 @@ static int hdmi_msm_power_ctrl(boolean enable)
 				DEV_ERR("%s: HPD ON FAILED\n", __func__);
 				return rc;
 			}
-			}
+		}
 	} else {
 		DEV_DBG("%s: Turning HPD ciruitry off\n", __func__);
 
@@ -4794,8 +4794,6 @@ static int hdmi_msm_hpd_feature(int on)
 		rc = hdmi_msm_hpd_on();
 	} else {
 		if (external_common_state->hpd_state) {
-			external_common_state->hpd_state = 0;
-
 			/* Send offline event to switch OFF HDMI and HAL FD */
 			hdmi_msm_send_event(HPD_EVENT_OFFLINE);
 
@@ -4803,6 +4801,8 @@ static int hdmi_msm_hpd_feature(int on)
 			INIT_COMPLETION(hdmi_msm_state->hpd_event_processed);
 			wait_for_completion_interruptible_timeout(
 				&hdmi_msm_state->hpd_event_processed, HZ);
+
+			external_common_state->hpd_state = 0;
 		}
 
 		hdmi_msm_hpd_off();

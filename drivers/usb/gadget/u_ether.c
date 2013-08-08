@@ -551,13 +551,11 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 				switch (retval) {
 				default:
 					DBG(dev, "tx queue err %d\n", retval);
-					// p13120. 2013.4.4 CRs-Fixed: 469436. Fix memory corruption in TX path --->>>
 					new_req->length = 0;
 					spin_lock(&dev->req_lock);
 					list_add_tail(&new_req->list,
-									&dev->tx_reqs);
+							&dev->tx_reqs);
 					spin_unlock(&dev->req_lock);
-					// p13120. 2013.4.4 CRs-Fixed: 469436. Fix memory corruption in TX path ---<<<
 					break;
 				case 0:
 					spin_lock(&dev->req_lock);
@@ -567,16 +565,13 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 				}
 			} else {
 				spin_lock(&dev->req_lock);
-				// p13120. 2013.4.4 CRs-Fixed: 469436. Fix memory corruption in TX path --->>>
-				//list_add(&new_req->list, &dev->tx_reqs);
-                /*
-               * Put the idle request at the back of the
-               * queue. The xmit function will put the
-               * unfinished request at the beginning of the
-               * queue.
-               */
-                list_add_tail(&new_req->list, &dev->tx_reqs);
-				// p13120. 2013.4.4 CRs-Fixed: 469436. Fix memory corruption in TX path ---<<<
+				/*
+				 * Put the idle request at the back of the
+				 * queue. The xmit function will put the
+				 * unfinished request at the beginning of the
+				 * queue.
+				 */
+				list_add_tail(&new_req->list, &dev->tx_reqs);
 				spin_unlock(&dev->req_lock);
 			}
 		} else {

@@ -26,6 +26,8 @@
 
 static struct rmi_device *rmi_dev_f01;
 int prev_charger_data = false;
+extern int is_voice_call_mode;
+extern int is_vt_mode;
 
 union f01_device_commands {
 	struct {
@@ -460,33 +462,68 @@ static ssize_t rmi_fn_01_nosleep_store(struct device *dev,
 	return retval;
 }
 
+int charger_mode;
 void rmi_chargermode(int flag)
 {
-	unsigned long new_value = flag;
+	//unsigned long new_value = flag;
 	int retval;
+	unsigned char reg1, reg2;
+
 	struct rmi_driver_data *driver_data = rmi_get_driverdata(rmi_dev_f01);
 	struct rmi_function_container *fc = driver_data->f01_container;
     struct f01_data *data = driver_data->f01_container->data;
 
-	if (prev_charger_data != flag)
-	{
+    //printk("[Touch]raw_data = %d\n", flag); //charger mode setting 1,3     
+
+	if(flag == CHARGER_ON|| flag == CHARGER_OFF){
 		prev_charger_data = flag;
 	}
+    else if(flag == CALL_ON)
+        flag = 1;
+    else if(flag == CALL_OFF) 
+        flag = prev_charger_data;
+    else
+		printk("[Touch] unknown charger mode value\n");     
 
     if (data ->suspended)
         return;
+	
 	data = fc -> data;
 	
-	data->device_control.ctrl0.charger_input = new_value;
+	data->device_control.ctrl0.charger_input = flag /*new_value*/;
 
 	retval = rmi_write_block(fc->rmi_dev, fc->fd.control_base_addr,
 			data->device_control.ctrl0.regs,
 			ARRAY_SIZE(data->device_control.ctrl0.regs));
+
 //	printk("[rmi_charger]data = %d\n", flag);
+	    charger_mode = flag; //for test
     
 	if (retval < 0)
 	{
 		printk("[rmi]Failed to write chargerinput bit.\n");
+	}
+	
+	// Change edge finger size
+	if(flag == false)
+	{
+		// non chager 54000
+		reg1 = 240;
+		reg2 = 210;			
+}
+	else
+	{
+		// Chager 60000
+		reg1 = 96;
+		reg2 = 234;
+	}
+	
+	retval = rmi_write(fc->rmi_dev, 0x0070, reg1);
+	retval = rmi_write(fc->rmi_dev, 0x0071, reg2);	
+
+	if (retval < 0)
+	{
+		printk("[rmi]Failed to write edge finger size\n");
 	}
 	
 }
@@ -1257,6 +1294,7 @@ static int rmi_f01_suspend(struct rmi_function_container *fc)
 	return retval;
 }
 
+extern int call_mode;
 static int rmi_f01_resume(struct rmi_function_container *fc)
 {
 	struct rmi_device *rmi_dev = fc->rmi_dev;
@@ -1283,7 +1321,11 @@ static int rmi_f01_resume(struct rmi_function_container *fc)
 		retval = 0;
 	}
 
+    //printk("[Touch]is_voice_call_mode = %d\n", is_voice_call_mode);
+	if((!is_voice_call_mode && !is_vt_mode) || call_mode == CALL_OFF)
 	rmi_chargermode(prev_charger_data);
+    else
+        rmi_chargermode(CALL_ON);
 	return retval;
 }
 #endif /* CONFIG_PM */

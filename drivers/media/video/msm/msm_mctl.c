@@ -625,25 +625,18 @@ pr_err("[SD_check] %s/ VIDIOC_MSM_AXI_RELEASE",__func__);
 			VIDIOC_MSM_AXI_RELEASE, NULL);
 	}
 
-#ifndef CONFIG_PANTECH_CAMERA // Case:00871739 : bug fix csiphy reset - jjhwang 2012.06.25.      
-	if (p_mctl->csid_sdev) {
-		v4l2_subdev_call(p_mctl->csid_sdev, core, ioctl,
-			VIDIOC_MSM_CSID_RELEASE, NULL);
-	}
-#endif
 	if (p_mctl->csiphy_sdev) {
 pr_err("[SD_check] %s/ VIDIOC_MSM_CSIPHY_RELEASE",__func__);
 		v4l2_subdev_call(p_mctl->csiphy_sdev, core, ioctl,
 			VIDIOC_MSM_CSIPHY_RELEASE,
 			sinfo->sensor_platform_info->csi_lane_params);
 	}
-#ifdef CONFIG_PANTECH_CAMERA // Case:00871739 : bug fix csiphy reset - jjhwang 2012.06.25.
+//2013.05.21 for 1213507 patch //VIDIOC_MSM_CSIPHY_RELEASE->VIDIOC_MSM_CSID_RELEASE// Case:00871739 : bug fix csiphy reset - jjhwang 2012.06.25.
 	if (p_mctl->csid_sdev) {
 pr_err("[SD_check] %s/ VIDIOC_MSM_CSID_RELEASE",__func__);
 		v4l2_subdev_call(p_mctl->csid_sdev, core, ioctl,
 			VIDIOC_MSM_CSID_RELEASE, NULL);
 	}
-#endif
 
 	if (p_mctl->act_sdev) {
 pr_err("[SD_check] %s/ (p_mctl->act_sdev, core, s_power, 0)",__func__);  

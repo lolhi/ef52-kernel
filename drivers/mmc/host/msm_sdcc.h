@@ -509,8 +509,7 @@ static inline void set_default_hw_caps(struct msmsdcc_host *host)
 		/* Version 0x06000018 need hard reset on errors */
 		host->hw_caps &= ~MSMSDCC_SOFT_RESET;
 	}
-	//<20130403> p14986 sim,jungsun. QCT Patch.
-	//if (version >= 0x2b) /* SDCC v4 2.1.0 and greater */
+
 	if (step >= 0x2b) /* SDCC v4 2.1.0 and greater */
 		host->hw_caps |= MSMSDCC_SW_RST | MSMSDCC_AUTO_CMD21;
 }

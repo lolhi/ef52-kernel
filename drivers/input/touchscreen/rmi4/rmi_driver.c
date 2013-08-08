@@ -106,7 +106,7 @@ static void touch_error_det_delayed_workqueue_handler(struct work_struct *work)
 {
 	int ret = 0;
 
-	ret = panel_test();
+	ret = panel_test(1);
 
 	if(ret == TOUCH_FAIL && touch_err_cnt < MAX_TOUCH_ERR_CHECK_CNT) // fail
 	{
@@ -126,7 +126,7 @@ static void touch_error_det_delayed_workqueue_handler(struct work_struct *work)
 	return;
 }
 
-int panel_test(void)
+int panel_test(int count)
 {
 	int retval = 0; // 1 - success, 0 - fail
 
@@ -137,7 +137,7 @@ int panel_test(void)
 	if(retval == false)
 		return retval;
 
-	retval = rmi_baseline(1); //mode 3 baseline
+	retval = rmi_baseline(count); //mode 3 baseline
     
 	//retval = rmi_raw_capacitance(); //mode 0 sensor
 
@@ -1120,6 +1120,14 @@ static int rmi_scan_pdt(struct rmi_device *rmi_dev)
 			else
 			{
 #if 0
+				if (pdt_entry.function_number == 0x11)
+				{
+					unsigned char reg1, reg2;
+					rmi_read(rmi_dev, 0x0070, &reg1);
+					rmi_read(rmi_dev, 0x0071, &reg2);					
+					printk("[Touch] Finger width value : %d, %d\n", reg1, reg2);
+				}
+			
 				if (pdt_entry.function_number == 0x51)
 				{
 					printk("[Touch] EF51 query base: 0x%04x\n", pdt_entry.query_base_addr + pdt_start);

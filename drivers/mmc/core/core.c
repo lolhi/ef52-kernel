@@ -363,18 +363,18 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	 * is needed since we already know that it does
 	 */
 	if (!mmc_card_need_bkops(card)) {
-		err = mmc_read_bkops_status(card);
-		if (err) {
+	err = mmc_read_bkops_status(card);
+	if (err) {
 			pr_err("%s: %s: Failed to read bkops status: %d\n",
 			       mmc_hostname(card->host), __func__, err);
-			goto out;
-		}
+		goto out;
+	}
 
-		if (!card->ext_csd.raw_bkops_status)
-			goto out;
+	if (!card->ext_csd.raw_bkops_status)
+		goto out;
 
 		pr_info("%s: %s: raw_bkops_status=0x%x, from_exception=%d\n",
-			mmc_hostname(card->host), __func__,
+		mmc_hostname(card->host), __func__,
 			card->ext_csd.raw_bkops_status,
 			from_exception);
 	}
@@ -401,11 +401,11 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	}
 	mmc_card_clr_need_bkops(card);
 
-	mmc_card_set_doing_bkops(card);
-	pr_debug("%s: %s: starting the polling thread\n",
-		 mmc_hostname(card->host), __func__);
-	queue_work(system_nrt_wq,
-		   &card->bkops_info.poll_for_completion);
+		mmc_card_set_doing_bkops(card);
+		pr_debug("%s: %s: starting the polling thread\n",
+			 mmc_hostname(card->host), __func__);
+		queue_work(system_nrt_wq,
+			   &card->bkops_info.poll_for_completion);
 
 out:
 	mmc_release_host(card->host);
@@ -2173,9 +2173,7 @@ int mmc_can_reset(struct mmc_card *card)
 {
 	u8 rst_n_function;
 
-//	if (mmc_card_sdio(card))
-// P11398 QCT Case : skip silent reset for SD card even if transaction failure happens
-	if (!mmc_card_sdio(card))
+	if (mmc_card_sdio(card))
 		return 0;
 
 	if (mmc_card_mmc(card)) {
@@ -2667,9 +2665,9 @@ int mmc_suspend_host(struct mmc_host *host)
 
 		if (!err) {
 			if (host->bus_ops->suspend) {
-				err = mmc_stop_bkops(host->card);
-				if (err)
-					goto stop_bkops_err;
+					err = mmc_stop_bkops(host->card);
+					if (err)
+						goto stop_bkops_err;
 				err = host->bus_ops->suspend(host);
 			}
 			if (!(host->card && mmc_card_sdio(host->card)))

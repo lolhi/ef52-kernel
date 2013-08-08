@@ -1833,11 +1833,7 @@ int slim_define_ch(struct slim_device *sb, struct slim_ch *prop, u16 *chanh,
 	}
 
 	if (grp)
-#if 1 // jmlee SR 01058163 has been updated with a new comment - All sound is muted.  CR 170798
 		*grph = ((nchan << 8) | SLIM_HDL_TO_CHIDX(chanh[0]));
-#else	
-		*grph = chanh[0];
-#endif
 	for (i = 0; i < nchan; i++) {
 		u8 chan = SLIM_HDL_TO_CHIDX(chanh[i]);
 		struct slim_ich *slc = &ctrl->chans[chan];
@@ -2914,18 +2910,11 @@ int slim_control_ch(struct slim_device *sb, u16 chanh,
 					break;
 			}
 		}
-#if 1 // jmlee SR 01058163 has been updated with a new comment - All sound is muted.  CR 170798
+
 		nchan++;
 		if (nchan < SLIM_GRP_TO_NCHAN(chanh))
-#else
-		if (!(slc->nextgrp & SLIM_END_GRP))
-#endif			
 			chan = SLIM_HDL_TO_CHIDX(slc->nextgrp);
-#if 1 // jmlee SR 01058163 has been updated with a new comment - All sound is muted.  CR 170798
 	} while (nchan < SLIM_GRP_TO_NCHAN(chanh));
-#else
-	} while (!(slc->nextgrp & SLIM_END_GRP));
-#endif	
 	mutex_unlock(&ctrl->m_ctrl);
 	if (!ret && commit == true)
 		ret = slim_reconfigure_now(sb);

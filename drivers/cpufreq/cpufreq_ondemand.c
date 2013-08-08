@@ -79,6 +79,10 @@ struct cpufreq_governor cpufreq_gov_ondemand = {
        .owner                  = THIS_MODULE,
 };
 
+
+// Modified Ondemand gov. for Optimiging Power Consumption . 2013.05.20 by dscheon
+#define PANTECH_ONDEMAND_OPTIMIZE_CONSUMPTION
+
 /* Sampling types */
 enum {DBS_NORMAL_SAMPLE, DBS_SUB_SAMPLE};
 
@@ -709,8 +713,15 @@ static void dbs_freq_increase(struct cpufreq_policy *p, unsigned int freq)
 	else if (p->cur == p->max)
 		return;
 
+#ifdef PANTECH_ONDEMAND_OPTIMIZE_CONSUMPTION
+	if (p->cpu == 0)
+		__cpufreq_driver_target(p, freq, dbs_tuners_ins.powersave_bias ?CPUFREQ_RELATION_L : CPUFREQ_RELATION_H);
+	else
+		__cpufreq_driver_target(p, freq,CPUFREQ_RELATION_L);
+#else
 	__cpufreq_driver_target(p, freq, dbs_tuners_ins.powersave_bias ?
 			CPUFREQ_RELATION_L : CPUFREQ_RELATION_H);
+#endif
 }
 
 static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
@@ -840,29 +851,44 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	cpufreq_notify_utilization(policy, load_at_max_freq);
 	/* Check for frequency increase */
 	if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur) {
+#ifdef PANTECH_ONDEMAND_OPTIMIZE_CONSUMPTION
+		unsigned int increse_next_freq;
+#endif
 		/* If switching to max speed, apply sampling_down_factor */
 		if (policy->cur < policy->max)
-			this_dbs_info->rate_mult =
-				dbs_tuners_ins.sampling_down_factor;
+			this_dbs_info->rate_mult = dbs_tuners_ins.sampling_down_factor;
+#ifdef PANTECH_ONDEMAND_OPTIMIZE_CONSUMPTION
+		if (policy->cpu == 0)
+			dbs_freq_increase(policy, policy->max);
+		else
+		{
+			increse_next_freq = max_load_freq / dbs_tuners_ins.up_threshold;
+
+			if (increse_next_freq > policy->max)
+				increse_next_freq = policy->max;
+
+			dbs_freq_increase(policy, increse_next_freq);		
+		}
+#else
 		dbs_freq_increase(policy, policy->max);
+#endif		
 		return;
 	}
 
-	if (num_online_cpus() > 1) {
+	if (num_online_cpus() > 1)
+	{
 
-		if (max_load_other_cpu >
-				dbs_tuners_ins.up_threshold_any_cpu_load) {
+		if (max_load_other_cpu > dbs_tuners_ins.up_threshold_any_cpu_load) 
+		{
 			if (policy->cur < dbs_tuners_ins.sync_freq)
-				dbs_freq_increase(policy,
-						dbs_tuners_ins.sync_freq);
+				dbs_freq_increase(policy, dbs_tuners_ins.sync_freq);
 			return;
 		}
 
-		if (max_load_freq > dbs_tuners_ins.up_threshold_multi_core *
-								policy->cur) {
+		if (max_load_freq > dbs_tuners_ins.up_threshold_multi_core *policy->cur)
+		{
 			if (policy->cur < dbs_tuners_ins.optimal_freq)
-				dbs_freq_increase(policy,
-						dbs_tuners_ins.optimal_freq);
+				dbs_freq_increase(policy,	dbs_tuners_ins.optimal_freq);
 			return;
 		}
 	}

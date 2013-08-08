@@ -700,6 +700,10 @@ config PIEZO_ECO
 config PANTECH_WLAN_QCOM_PATCH
 	bool     
       default y
+      
+config PANTECH_WLAN_802_11_AC_DATA_RATE_DISPLAY
+	bool     
+      default y
                   
 ##################################################################################
 # PANTECH_WLAN END

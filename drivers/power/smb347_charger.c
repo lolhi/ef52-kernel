@@ -885,6 +885,9 @@ void smb347_otg_power(int on)
 {
 	printk("%s Enter on=%d\n", __func__, on);
 	
+	if (!the_chip)
+		return;
+
 	if (on) {
 		smb347_regs_init();
 		smb347_write_reg(REG_CMD_REG_A, OTG_ENABLE);

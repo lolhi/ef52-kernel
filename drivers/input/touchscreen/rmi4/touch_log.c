@@ -29,6 +29,7 @@
 #define TOUCH_E057	1160787255
 #define TOUCH_E058	1160787256
 #define TOUCH_E059	1160787257
+#define TOUCH_E064	1160787508
 #endif
 
 typedef struct {
@@ -194,7 +195,10 @@ int read_touch_info(char *page, char **start, off_t off, int count, int *eof, vo
 			break;
         case TOUCH_E059:
 			buf += sprintf(buf, "Version: \t e059\n");
-			break;            
+			break; 
+        case TOUCH_E064:
+			buf += sprintf(buf, "Version: \t e064\n");
+			break;       
 		default:
 			buf += sprintf(buf, "Version: \t%d\n", touch_firmware_version);
 			break;

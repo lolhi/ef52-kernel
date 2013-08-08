@@ -142,10 +142,12 @@ typedef struct {
 
   /* F_PANTECH_SECBOOT - DO NOT erase this comment! */
   char   secure_magic_[ 7 ];
+  // 20130423 p14694 jmkim Add field information
+  char sub_binary_version_[ 8 ]; 
+  uint32 preload_checksum;
+  uint8  reserved_2[ 42 ];
   
-  uint8  reserved_2[ 54 ];
-  
-} phoneinfo_type;
+} __attribute__((packed)) phoneinfo_type;
 
 static struct delayed_work phoneinfo_read_wqst;
 static char pantech_phoneinfo_buff[SECTOR_SIZE]={0,};
@@ -561,7 +563,7 @@ static void load_phoneinfo_with_imei(struct work_struct *work_s)
     memcpy(pantech_phoneinfo_buff_ptr->Imei, read_buf+4, NV_UE_IMEI_SIZE);
   }
 
-
+  
   filp_close(rawdata_filp, NULL);
 
   if(check_phoneinfo() != 1 && read_count < 5)

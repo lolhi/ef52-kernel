@@ -1175,18 +1175,13 @@ static int msm_sat_define_ch(struct msm_slim_sat *sat, u8 *buf, u8 len, u8 mc)
 					true, &chh[0]);
 		else
 			ret = slim_define_ch(&sat->satcl, &prop,
-#if 1 // jmlee SR 01058163 has been updated with a new comment - All sound is muted.  CR 170798
 					chh, 1, true, &chh[0]);
-#else			
-					&chh[0], 1, false, NULL);
-#endif
 		dev_dbg(dev->dev, "define sat grp returned:%d", ret);
 		if (ret)
 			return ret;
-#if 1 // jmlee SR 01058163 has been updated with a new comment - All sound is muted.  CR 170798
 		else if (grph)
 			*grph = chh[0];
-#endif
+
 		/* part of group so activating 1 will take care of rest */
 		if (mc == SLIM_USR_MC_DEF_ACT_CHAN)
 			ret = slim_control_ch(&sat->satcl,
